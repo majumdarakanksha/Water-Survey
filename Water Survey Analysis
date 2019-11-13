@@ -78,8 +78,6 @@ ggplot(relation_wc)+
 anova_relation_consump <- aov(consump_water~relation, data = relation_wc)
 summary(anova_relation_consump)
 
-#hospital data
-#ward_hosp <- water_data %>% select(ward_num, hosp_type, medical_expense, apl, bpl, app_numb) %>% filter(ward_num < 8) %>% na.omit()
 
 
 
