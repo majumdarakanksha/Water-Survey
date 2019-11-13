@@ -1,0 +1,86 @@
+library(tidyverse)
+library(dplyr)
+
+#loading water data and changing column names
+
+water_data <- read_csv("~/Desktop/Surveys-2019-07-28.csv",col_types = cols(Age = col_integer(),`Application number` = col_integer(), Assignee = col_skip(), `Capacity in liters` = col_number(), `Contact number` = col_skip(), Created = col_skip(), `Created by` = col_skip(), Identifier = col_skip(), `Last note` = col_skip(),`Family members` = col_skip(), `Lead id` = col_integer(), `Medical expenses` = col_number(), `Next task` = col_skip(), Numbers = col_integer(), Stage = col_skip(), `Total family members` = col_integer(), Updated = col_skip(), `Ward number` = col_number(), `Water consumption` = col_number()))
+
+water_data <- setNames(water_data, (c("ward_num", "ident_num", "working_status", "total_family_memb", "relation", "ration_card", "app_numb", "education", "age", "sex", "apl", "bpl", "religion", "handicap_status", "caste", "house", "medical_expense", "hosp_type", "source_water", "consump_water", "storageplace_water", "numb_storageplace_water", "capacity_liters", "toilet", "adhaarcard_status")))
+
+copy_water_data <- water_data
+
+#checking the range of water consumption (in liters) of each ward. Added the source and storage place of the water. Turned ward_num into a discrete variable - makes the graphs look better and gives a more accurate ANOVA
+
+ward_num_water_consump <- select(copy_water_data, ward_num, consump_water, source_water, storageplace_water, app_numb) %>% filter(ward_num < 8) %>% na.omit(ward_num_water_consump)
+ward_num_water_consump$ward_num <- as.character(as.numeric(ward_num_water_consump$ward_num))
+
+group_by(ward_num_water_consump, ward_num) %>% summarize(count = n(), mean = mean(consump_water, na.rm = TRUE), sd = sd(consump_water, na.rm = TRUE))
+
+
+# boxplot to compare the range of water consumption of each ward (ward 2 and 5 have not been documented)
+
+ggplot(ward_num_water_consump)+ 
+  geom_boxplot(mapping = aes(x = ward_num, y = consump_water, fill = ward_num))+
+  labs( title = "Median water consumption in each ward", x = "Ward Number", y = "Average water consumption", fill = "Ward Number" )
+
+#ANOVA of the boxplot
+anova_ward_consump <- aov(consump_water~ward_num, data = ward_num_water_consump)
+summary(anova_ward_consump)
+
+#shows statistical significance but for with pairs of averages - TukeyHSD comes in
+
+TukeyHSD(anova_ward_consump)
+
+elements_ward_num <- unique(ward_num_water_consump$ward_num)
+
+#Creating graphs for ward number, water consumption and source of the water 
+
+ggplot(ward_num_water_consump) +
+  geom_point(mapping = aes(x = ward_num, y = consump_water, color = source_water), position = "jitter")+
+  labs(title = "Consumption of water per person in each ward", x = "Ward Number", y = "Water consumption", color = "Water Source")
+
+#Note - Large amount of people use a private borwell- used the graph function to make graphs for ward
+
+ggplot(ward_num_water_consump) +
+  geom_histogram(mapping = aes(consump_water, fill = source_water), bins = 15, alpha = 1/2, position = "identity") +
+  labs( title = "Water consumption in each ward", x = "Water consumption", y = "Count", fill = "Water Source")+
+  facet_wrap(~ ward_num, nrow = 2)
+
+# Average water consumption per household in each ward 
+average_house_wc <- copy_water_data %>% group_by(app_numb) %>% filter(ward_num < 8) %>% summarise(average_wc = (mean(consump_water)), new_ward_num = (mean(ward_num))) %>% na.omit()
+average_house_wc$new_ward_num <- as.character(as.numeric(average_house_wc$new_ward_num))
+
+ggplot(average_house_wc) +
+  geom_histogram(mapping = aes(average_wc, fill = new_ward_num), bins = 30, alpha = 1/2, position = "identity")+
+  facet_wrap(~new_ward_num)+
+  labs(title = "Average water consumption per houshold in each ward", x = "Water consumption", y = "Count", fill = "Ward Number")
+
+# Water consumption based on identified gender - wanted to identify if water consumption differs between men and women
+gender_wc <- copy_water_data %>% select(ward_num, ident_num, total_family_memb, relation, app_numb, sex, consump_water) %>% filter(ward_num < 8) %>% na.omit()
+
+group_by(gender_wc, sex) %>% summarize(count = n(), mean = mean(consump_water, na.rm = TRUE), median = median(consump_water, na.rm = TRUE), sd = sd(consump_water, na.rm = TRUE))
+
+ggplot(gender_wc)+ 
+  geom_boxplot(mapping = aes(x = sex, y = consump_water, fill = sex)) +
+  labs(title = "Difference in median water consumption between genders", x = "Gender",y = "Water consumption", fill = "Gender")
+
+anova_gender_consump <- aov(consump_water~sex, data = gender_wc)
+summary(anova_gender_consump)
+
+#Family relation and water consumption - wanted to identify if any members of the family consume more water than others
+#Data had to be highly filtered to direct family members, some relations were distant, unknown or indiscernable in the survey
+relation_wc <- gender_wc %>% group_by(relation) %>% filter(relation %in% c("FATHER", "MOTHER", "SON", "DAUGHTER", "GRAND FATHER", "GRAND MOTHER")) 
+
+ggplot(relation_wc)+ 
+  geom_boxplot(mapping = aes(x = relation, y = consump_water, fill = relation))+
+  labs(title = "Difference in median water consumption between family members", x = "Family member",y = "Water consumption", fill = "Family member")
+
+anova_relation_consump <- aov(consump_water~relation, data = relation_wc)
+summary(anova_relation_consump)
+
+#hospital data
+#ward_hosp <- water_data %>% select(ward_num, hosp_type, medical_expense, apl, bpl, app_numb) %>% filter(ward_num < 8) %>% na.omit()
+
+
+
+
