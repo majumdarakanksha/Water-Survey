@@ -78,6 +78,20 @@ ggplot(relation_wc)+
 anova_relation_consump <- aov(consump_water~relation, data = relation_wc)
 summary(anova_relation_consump)
 
+#Comparing average medical expense and average water consumption - wanted to see the relation between people who consume more water have lower medical bills. The comparison was done out of interest
+#Used the variables to make a scatter plot with a regression line. 
+ward_hosp <- copy_water_data %>% select(ward_num, hosp_type, medical_expense, apl, bpl, app_numb, consump_water) %>% filter(ward_num < 8) %>% na.omit()
+average_house_hosp <- ward_hosp %>% select(ward_num, medical_expense, app_numb, consump_water) %>% group_by(app_numb) %>% summarise(average_medical_exp = (mean(medical_expense)), new_ward_num = (mean(ward_num)), ave_water_consump = (mean(consump_water))) %>% na.omit()
+average_house_hosp$new_ward_num <- as.character(as.numeric(average_house_hosp$new_ward_num))
+
+b <- ggplot(average_house_hosp, aes(x = ave_water_consump, y = average_medical_exp, color = new_ward_num))+ 
+  geom_point()+
+  facet_wrap(~new_ward_num)+
+  labs(title = "Average water consumption compared to average medical expense", x = "Average water consumption", y = "Average medical expense")
+
+b + geom_smooth( method = 'lm') 
+  
+cor.test(average_house_hosp$ave_water_consump, average_house_hosp$average_medical_exp, method = "pearson", conf.level = 0.95)
 
 
 
